@@ -361,3 +361,5 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+/FVC19/Icon.ico
+/FVC19/Res/Icon.ico
