@@ -21,3 +21,14 @@
 3. 검색할 위치를 지정한다. (지도상의 범위를 키우면 넓게 검색됨. 즉, 많은 병원을 찾을 수 있음)
 4. 기다린다
 5. 백신이 검색되면 선택한 브라우저로 백신예약창이 띄워진다.
+
+# 참고
+
+1. LitJson 소스코드 포함 ( https://github.com/LitJSON/litjson )
+2. 네이버 플레이스 (https://m.place.naver.com/rest/vaccine?vaccineFilter=used)
+
+# 라이센스
+
+1. GPL 기반 라이센스
+2. 교육용 외의 사용을 금지.
+4. 불법 용도 사용/배포 금지.
