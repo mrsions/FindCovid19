@@ -55,8 +55,8 @@ namespace OVC19
 ##                    COVID-19                        ##
 ##               잔여백신을 알려줘!                   ##
 ##                                                    ##
-##                                 Make by SIONS      ##
-##                                   www.sions.kr     ##
+##                                 Made by SIONS      ##
+##                               github.com/mrsions   ##
 ##                                                    ##
 ########################################################
 
@@ -68,8 +68,6 @@ namespace OVC19
 
         private static void GetBrowser()
         {
-            Console.WriteLine(Browser.StripQuotes(@"""C:\Program Files\VMware\VMware Tools\VMwareHostOpen.exe""--default http"));
-
             PrintHeader();
             Console.WriteLine("------------------------------------------------------------------");
             Console.WriteLine("▤ 브라우저 선택");
