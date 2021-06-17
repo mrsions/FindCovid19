@@ -23,7 +23,7 @@
 
 # 사용방법
 
-1. [FCV19.exe](https://github.com/mrsions/FindCovid19/releases) 파일을 실행한다.
+1. [FVC19.exe](https://github.com/mrsions/FindCovid19/releases) 파일을 실행한다.
 2. 사용할 브라우저를 선택한다.
 3. 검색할 위치를 지정한다. (지도상의 범위를 키우면 넓게 검색됨. 즉, 많은 병원을 찾을 수 있음)
 4. 기다린다
