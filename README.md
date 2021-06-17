@@ -2,9 +2,13 @@
 
 네이버 Graph API를 사용하여 잔여백신이 일어난 병원의 백신예약 페이지를 팝업해주는 프로그램입니다.
 
+![GitHub](https://img.shields.io/badge/-.NET%20Framework%204.5-512BD4?style=float-square&logo=.NET)
+![GitHub](https://img.shields.io/badge/-LitJson-000000?style=float-square&logo=JSON)
+
 
 # 주의사항
 
+![GitHub](https://img.shields.io/badge/-주의사항-F40D12?style=float-square&logo=AdBlock)
 이 앱은 네이버 Graph API의 공개되지 않은 부분을 사용하며, 학습목적 이외의 용도로 사용했을 경우의 형사, 민사상을 포함한 모든 법적인 문제는 사용자에게 있습니다.
 
 # 빌드방법
@@ -28,7 +32,7 @@
 2. 네이버 플레이스 (https://m.place.naver.com/rest/vaccine?vaccineFilter=used)
 
 # 라이센스
-
+![GitHub](https://img.shields.io/badge/License-GPL-green?style=float-square)
 1. GPL 기반 라이센스
 2. 교육용 외의 사용을 금지.
 4. 불법 용도 사용/배포 금지.
