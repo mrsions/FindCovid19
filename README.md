@@ -1,6 +1,7 @@
 # FCV19 (Find Vaccine Covid-19)
 
 네이버 Graph API를 사용하여 잔여백신이 일어난 병원의 백신예약 페이지를 팝업해주는 프로그램입니다.
+아직 이 프로그램은 검증되지 않았습니다. 혹시나 이 앱을 사용하여 백신예약에 성공하신 분이 계시다면 Issues 란 혹은 mrsions@gmail.com 으로 보고해주시면 감사하겠습니다.
 
 ![GitHub](https://img.shields.io/badge/-.NET%20Framework%204.5-512BD4?style=float-square&logo=.NET)
 ![GitHub](https://img.shields.io/badge/-LitJson-000000?style=float-square&logo=JSON)
