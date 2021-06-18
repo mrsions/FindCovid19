@@ -1,4 +1,5 @@
-﻿using Microsoft.Win32;
+﻿using LitJson;
+using Microsoft.Win32;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
@@ -12,39 +13,85 @@ namespace OVC19
 {
     class Program
     {
-        public static string BrowserBin = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+        public const string PATH_LAST_INFO = "lastinfo.txt";
+
+        //public static string BrowserBin = @"C:\Program Files\Google\Chrome\Application\chrome.exe";
+
+        public static BrowserSystem browser;
+        public static SearchSystem search;
 
         static void Main(string[] args)
         {
             try
             {
-                GetBrowser();
-                GetLocation(out var x, out var y, out var minX, out var minY, out var maxX, out var maxY);
+                //GetBrowser();
+                search = new SearchSystem();
+                browser = new BrowserSystem();
+
+                ValidateSignIn();
+                ValidateAuth();
+                SelectLocation();
+                SelectVaccine();
 
                 PrintHeader();
                 Console.WriteLine("------------------------------------------------------------------");
                 Console.WriteLine("▤ 검색시작! (백신을 찾으면 웹창을 띄워줍니다!)");
+                Console.WriteLine("  - 인터넷 창을 종료하지 마세요.");
+                Console.WriteLine("  - 인터넷 창을 종료하면 프로그램이 종료됩니다.");
                 Console.WriteLine();
-                var system = new SearchSystem();
-                system.X = x;
-                system.Y = y;
-                system.MinX = minX;
-                system.MinY = minY;
-                system.MaxX = maxX;
-                system.MaxY = maxY;
-                system.BrowserBin = BrowserBin;
-                system.VaccineTypes = new string[] { "아스트라제네카", "화이자", "모더나" };
-                system.Start();
+                search.Start();
 
-                while (true)
+                while (browser.IsRun())
                 {
                     Thread.Sleep(10);
                 }
             }
             catch (Exception e)
             {
-                Console.WriteLine(e);
+                //Console.WriteLine(e);
             }
+        }
+
+        private static OpenQA.Selenium.Chrome.ChromeDriver ValidateSignIn()
+        {
+            PrintHeader();
+            Console.WriteLine("------------------------------------------------------------------");
+            Console.WriteLine("▤ 로그인");
+            Console.WriteLine(" 브라우저를 통해 로그인해주세요.");
+            var driver = browser.Open("https://nid.naver.com/nidlogin.login");
+            while (driver.Url.StartsWith("https://nid.naver.com/nidlogin.login")) ;
+            return driver;
+        }
+
+        private static OpenQA.Selenium.Chrome.ChromeDriver ValidateAuth()
+        {
+            OpenQA.Selenium.Chrome.ChromeDriver driver;
+            PrintHeader();
+            Console.WriteLine("------------------------------------------------------------------");
+            Console.WriteLine("▤ 인증");
+            Console.WriteLine(" 브라우저를 통해 인증해주세요.");
+
+            string authUrl = "https://v-search.nid.naver.com/reservation/info?key=H6X1QDNHE3rv7Zz";
+            if(File.Exists(PATH_LAST_INFO)) File.ReadAllText(PATH_LAST_INFO, Encoding.UTF8);
+
+            driver = browser.Open(authUrl);
+            try
+            {
+                while (driver.Url.StartsWith("https://v-search.nid.naver.com/reservation/info")
+                    || driver.Url.StartsWith("https://v-search.nid.naver.com/reservation/auth"))
+                {
+                    if (driver.Url.StartsWith("https://v-search.nid.naver.com/home"))
+                    {
+                        throw new Exception("");
+                    }
+                }
+            }
+            catch 
+            {
+                Console.WriteLine();
+                Console.WriteLine("브라우저 인증 주소가 손상됐습니다. 실제 예약상황에 들어갔을 때 인증을 실시합니다.");
+            }
+            return driver;
         }
 
         private static void PrintHeader()
@@ -63,55 +110,11 @@ namespace OVC19
 ※ 이 앱은 Naver Graph API를 사용합니다.
 ※ 이 앱은 학습목적으로 개발된 앱이며, 사용시 발생하는 형사, 민사상를 포함한 모든 법적인 문제는 사용자에게 있습니다.
 ※ 이 앱은 학습목적으로 개발된 앱이며 판매, 배포, 수정 등을 금지합니다.
+※ 종료하시려면 CTRL + C 를 눌러주세요
 ");
         }
 
-        private static void GetBrowser()
-        {
-            PrintHeader();
-            Console.WriteLine("------------------------------------------------------------------");
-            Console.WriteLine("▤ 브라우저 선택");
-            Console.WriteLine();
-
-            var browsers = (from b in Browser.GetBrowsers() where !b.Name.Contains("Internet Explorer") && !b.Name.Contains("Default Host Application") select b).ToList();
-            if (browsers.Count == 0)
-            {
-                Console.WriteLine("▶ 브라우저를 찾을 수 없습니다. 브라우저를 설치한 뒤 실행 해 주세요.");
-                Console.Write("종료하려면 아무 키나 누르십시오 . . .");
-                Console.ReadKey();
-                Environment.Exit(0);
-            }
-            else if (browsers.Count == 1)
-            {
-                BrowserBin = browsers[0].Path;
-            }
-            else
-            {
-                for (int i = 0; i < browsers.Count; i++)
-                {
-                    Console.WriteLine($" {i}) {browsers[i].Name} ({browsers[i].Version})");
-                }
-                Console.WriteLine();
-
-                while (true)
-                {
-                    Console.Write("사용할 브라우저 번호를 입력해 주세요. ) ");
-                    try
-                    {
-                        int i = int.Parse(Console.ReadLine());
-                        BrowserBin = browsers[i].Path;
-                        break;
-                    }
-                    catch
-                    {
-                    }
-                }
-            }
-
-            Console.WriteLine();
-        }
-
-        private static void GetLocation(out double x, out double y, out double minX, out double minY, out double maxX, out double maxY)
+        private static void SelectLocation()
         {
             PrintHeader();
             Console.WriteLine("------------------------------------------------------------------");
@@ -120,57 +123,33 @@ namespace OVC19
 
             if (File.Exists("location.txt"))
             {
-                Console.WriteLine("▶ 기존에 입력된 위치가 있습니다.");
-                Console.WriteLine("URL) " + File.ReadAllText("location.txt"));
-                Console.WriteLine();
-                Console.Write("기존 위치를 사용하시겠습니까? (Y/N)");
-                while (true)
+                string url = File.ReadAllText("location.txt", Encoding.UTF8);
+                if (url.StartsWith("https://m.place.naver.com/rest/vaccine"))
                 {
-                    var line = Console.ReadLine().ToLower();
-                    if (line.StartsWith("y"))
-                    {
-                        if (SetupQuery(File.ReadAllText("location.txt", Encoding.UTF8), out x, out y, out minX, out minY, out maxX, out maxY))
-                        {
-                            Console.WriteLine();
-                            return;
-                        }
-                    }
-                    else if (line.StartsWith("n"))
-                    {
-                        break;
-                    }
+                    var lines = url.Replace("\r", "").Split('\n');
+                    browser.Open(lines[0]);
                 }
             }
 
-            Console.WriteLine("▶ 지시에 따라 위치를 지정하신 뒤, url을 입력해주세요.");
-            Console.WriteLine("   1. 열린 네이버창을 선택한다. (혹은 입력 https://m.place.naver.com/rest/vaccine?vaccineFilter=used)");
+            Console.WriteLine("▶ 지시에 따라 위치를 정해주세요.");
+            Console.WriteLine("   1. 열린 백신 네이버 지도를 확인합니다.");
             Console.WriteLine("   2. 지도상에서 검색할 위치 및 폭을 맞춥니다. (넓고 좁음까지 포함)");
             Console.WriteLine("   3. 상단의 [현 지도에서 검색]을 누른다.");
-            Console.WriteLine("   4. url을 복사한다.");
-            Console.WriteLine("   5. 검은색 콘솔창에 마우스 오른쪽 버튼을 누른다.");
-            Console.WriteLine("   6. 엔터");
             Console.WriteLine();
-            Browse("https://m.place.naver.com/rest/vaccine?vaccineFilter=used");
+            var driver = browser.Open("https://m.place.naver.com/rest/vaccine?vaccineFilter=used");
 
             while (true)
             {
-                Console.Write("URL) ");
-                string input = Console.ReadLine();
-                if (!string.IsNullOrWhiteSpace(input))
+                if (SetupQuery(driver.Url))
                 {
-                    if (SetupQuery(input, out x, out y, out minX, out minY, out maxX, out maxY))
-                    {
-                        File.WriteAllText("location.txt", input, Encoding.UTF8);
-                        Console.WriteLine();
-                        return;
-                    }
-                    Console.WriteLine("값이 잘못입력됐습니다. url을 입력해주세요. 예) https://m.place.naver.com/rest/vaccine?vaccineFilter=used&x=127.0224661&y=37.2502279&bounds=126.9859452%3B37.2320523%3B127.0589871%3B37.2683992");
+                    File.WriteAllText("location.txt", driver.Url, Encoding.UTF8);
                     Console.WriteLine();
+                    return;
                 }
             }
         }
 
-        private static bool SetupQuery(string input, out double x, out double y, out double minX, out double minY, out double maxX, out double maxY)
+        private static bool SetupQuery(string input)
         {
             const string PREFIX = "https://m.place.naver.com/rest/vaccine?";
 
@@ -180,32 +159,105 @@ namespace OVC19
                 var query = HttpUtility.ParseQueryString(queryString);
                 try
                 {
-                    x = double.Parse(query["x"]);
-                    y = double.Parse(query["y"]);
+                    search.X = double.Parse(query["x"]);
+                    search.Y = double.Parse(query["y"]);
                     var bounds = query["bounds"].Split(';');
-                    minX = double.Parse(bounds[0]);
-                    minY = double.Parse(bounds[1]);
-                    maxX = double.Parse(bounds[2]);
-                    maxY = double.Parse(bounds[3]);
+                    search.MinX = double.Parse(bounds[0]);
+                    search.MinY = double.Parse(bounds[1]);
+                    search.MaxX = double.Parse(bounds[2]);
+                    search.MaxY = double.Parse(bounds[3]);
                     return true;
                 }
                 catch (Exception e)
                 {
                 }
             }
-            x = y = minX = minY = maxX = maxY = 0;
             return false;
         }
 
-        public static void Browse(string url)
+
+        private static void SelectVaccine()
         {
-            using (var p = Process.Start(new ProcessStartInfo
+            var vaccines = new string[] { "아스트라제네카", "얀센", "화이자", "모더나" };
+            List<string> selected = new List<string>();
+            int index = 0;
+            if (File.Exists("vaccines.txt"))
             {
-                FileName = BrowserBin,
-                Arguments = url
-            }))
+                index = vaccines.Length;
+                selected = JsonMapper.ToObject<List<string>>(File.ReadAllText("vaccines.txt", Encoding.UTF8));
+            }
+            else
             {
-                p.WaitForInputIdle();
+                selected.AddRange(vaccines);
+            }
+
+            while (true)
+            {
+                PrintHeader();
+                Console.WriteLine("------------------------------------------------------------------");
+                Console.WriteLine("▤ 백신 선택 (방향키, 스페이스)");
+                Console.WriteLine();
+
+                for (int i = 0; i <= vaccines.Length; i++)
+                {
+                    var msg = "   ";
+
+                    if (i == vaccines.Length)
+                    {
+                        msg += "[ 예약시작 ]";
+                    }
+                    else if (selected.Contains(vaccines[i]))
+                    {
+                        msg += "[ V ] " + vaccines[i];
+                    }
+                    else
+                    {
+                        msg += "[   ] " + vaccines[i];
+                    }
+
+                    var bc = Console.ForegroundColor;
+                    Console.ForegroundColor = (index == i ? ConsoleColor.Yellow : ConsoleColor.Gray);
+                    Console.WriteLine(msg);
+                    Console.ForegroundColor = bc;
+                }
+
+                var key = Console.ReadKey();
+                int listLength = vaccines.Length + 1;
+                switch (key.Key)
+                {
+                    case ConsoleKey.UpArrow:
+                        index = (index - 1 + listLength) % listLength;
+                        break;
+                    case ConsoleKey.DownArrow:
+                        index = (index + 1 + listLength) % listLength;
+                        break;
+                    case ConsoleKey.Spacebar:
+                    case ConsoleKey.Enter:
+                        try
+                        {
+                            if (index == vaccines.Length)
+                            {
+                                search.VaccineTypes = selected.ToArray();
+                                return;
+                            }
+                            else
+                            {
+                                if (selected.Contains(vaccines[index]))
+                                {
+                                    selected.Remove(vaccines[index]);
+                                }
+                                else
+                                {
+                                    selected.Add(vaccines[index]);
+                                }
+                            }
+                        }
+                        finally
+                        {
+                            File.WriteAllText("vaccines.txt", JsonMapper.ToJson(selected), Encoding.UTF8);
+                        }
+                        break;
+                }
             }
         }
     }

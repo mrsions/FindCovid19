@@ -2,6 +2,7 @@ using LitJson;
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -88,12 +89,11 @@ namespace OVC19
         public double MinY { get; set; }
         public double MaxX { get; set; }
         public double MaxY { get; set; }
+        public int SleepTime { get; set; } = 0;
         private int Display { get; set; } = 1000;
 
         public bool IsRun { get; private set; }
         public DateTime LastResponse { get; private set; }
-
-
         private Dictionary<string, DateTime> showHistories = new Dictionary<string, DateTime>();
 
 
@@ -101,7 +101,7 @@ namespace OVC19
         {
             if (IsRun) return;
             IsRun = true;
-            Running();
+            Task.Factory.StartNew(Running);
         }
 
         public void Stop()
@@ -120,6 +120,7 @@ namespace OVC19
                     {
                         Stopwatch st = Stopwatch.StartNew();
                         int call = 0;
+                        int error = 0;
 
                         // 자료 수집
                         List<RestListItem> items = new List<RestListItem>(1);
@@ -140,13 +141,20 @@ namespace OVC19
                                 if (response.IsSuccessStatusCode)
                                 {
                                     string jsonTxt = await response.Content.ReadAsStringAsync();
-                                    var result = JsonMapper.ToObject<RestCollection[]>(jsonTxt);
-                                    var bus = result[0].data.rests.businesses;
-                                    if (bus.items.Length == 0) break;
+                                    if (jsonTxt.Contains("INTERNAL_SERVER_ERROR"))
+                                    {
+                                        error++;
+                                    }
+                                    else
+                                    {
+                                        var result = JsonMapper.ToObject<RestCollection[]>(jsonTxt);
+                                        var bus = result[0].data.rests.businesses;
+                                        if (bus.items.Length == 0) break;
 
-                                    items.AddRange(bus.items);
-                                    items.Capacity = Math.Max(items.Count, bus.total);
-                                    call++;
+                                        items.AddRange(bus.items);
+                                        items.Capacity = Math.Max(items.Count, bus.total);
+                                        call++;
+                                    }
                                 }
                             }
                         }
@@ -159,37 +167,54 @@ namespace OVC19
                                           select i).ToArray();
 
                         // 실행
-                        int launch = 0;
-                        foreach (var item in availables)
+                        bool process = availables.Length > 0;
+                        if (process)
                         {
-                            if (ShowSite(item))
+                            Console.WriteLine();
+                            foreach (var item in availables)
                             {
-                                launch++;
+                                ProcessSite(item);
                             }
                         }
                         st.Stop();
 
                         int elapsed = (int)st.ElapsedMilliseconds;
-                        Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] 병원수:{items.Count,-6} | 가능수량:{availables.Length,-6} | 실행:{launch,-6} | 호출:({call}/{elapsed}ms)");
+                        Console.Write($"\r[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] 병원수:{items.Count,-3} | 가능수량:{availables.Length,-3} | 에러:{error,-1} | 호출:{call}({elapsed}ms)");
 
                         // 대기
-                        if (elapsed < 2000)
+                        if (SleepTime > 100)
                         {
-                            await Task.Delay(2000 - elapsed);
+                            if (elapsed < SleepTime)
+                            {
+                                await Task.Delay(SleepTime - elapsed);
+                            }
+                            else if (elapsed > SleepTime * 2)
+                            {
+                                var bef = Console.ForegroundColor;
+                                Console.ForegroundColor = ConsoleColor.Red;
+                                Console.Write("\r★★★ 속도가 너무 느립니다. 범위를 좁게 설정해주세요. ★★★");
+                                Console.ForegroundColor = bef;
+                            }
+                            else
+                            {
+                                var bef = Console.ForegroundColor;
+                                Console.ForegroundColor = ConsoleColor.Yellow;
+                                Console.Write("\r☆☆☆ 속도가 너무 느립니다. 범위를 좁게 설정해주세요. ☆☆☆");
+                                Console.ForegroundColor = bef;
+                            }
                         }
-                        else if(elapsed > 4000)
+                        else if (elapsed > 4000)
                         {
                             var bef = Console.ForegroundColor;
                             Console.ForegroundColor = ConsoleColor.Red;
-                            Console.WriteLine("★★★ 속도가 너무 느립니다. 범위를 좁게 설정해주세요. ★★★");
-                            Console.WriteLine("☆☆☆   속도가 느리면 백신 발견 확률이 줄어듭니다.   ☆☆☆");
+                            Console.Write("\r★★★ 속도가 너무 느립니다. 범위를 좁게 설정해주세요. ★★★");
                             Console.ForegroundColor = bef;
                         }
-                        else
+                        else if (elapsed > 2000)
                         {
                             var bef = Console.ForegroundColor;
                             Console.ForegroundColor = ConsoleColor.Yellow;
-                            Console.WriteLine("☆☆☆ 속도가 너무 느립니다. 범위를 좁게 설정해주세요. ☆☆☆");
+                            Console.Write("\r☆☆☆ 속도가 느립니다. 범위를 좁게 설정해주세요. ☆☆☆");
                             Console.ForegroundColor = bef;
                         }
 
@@ -209,30 +234,120 @@ namespace OVC19
             IsRun = false;
         }
 
-        private bool ShowSite(RestListItem item)
+        private bool ProcessSite(RestListItem item)
         {
+            if (showHistories.TryGetValue(item.id, out var time) && (DateTime.Now - time).TotalSeconds < 60)
+            {
+                return false;
+            }
+
+            bool success = false;
             try
             {
-                if (showHistories.TryGetValue(item.id, out var time) && (DateTime.Now - time).TotalSeconds < 60)
+                Console.WriteLine();
+                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [자동예약] {item.name} : 신청시작");
+                var driver = Program.browser.Open($"https://m.place.naver.com/hospital/{item.id}/home?entry=ple");
+
+                //---------------------------------------------------------
+                // 웹페이지
+                //https://m.place.naver.com/hospital/1072949398/home?entry=ple
+                var st = Stopwatch.StartNew();
+                while (driver.Url.ToLower().StartsWith("https://m.place.naver.com/hospital/"))
                 {
-                    return false;
+                    if (st.ElapsedMilliseconds > 3000) return (success = false);
+                    try
+                    {
+                        var target = driver.FindElementByCssSelector("div._2cgGW._2Ylqf");
+                        if (target == null)
+                        {
+                            continue;
+                        }
+                        target.Click();
+                        break;
+                    }
+                    catch (Exception e)
+                    {
+                    }
                 }
 
-                using (var p = Process.Start(new ProcessStartInfo
+                //---------------------------------------------------------
+                // 인증절차
+                //https://v-search.nid.naver.com/reservation/auth
+                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [자동예약] {item.name} : 사용자인증");
+                st = Stopwatch.StartNew();
+                while (driver.Url.ToLower().StartsWith("https://v-search.nid.naver.com/reservation/auth"))
                 {
-                    FileName = BrowserBin,
-                    Arguments = $"https://m.place.naver.com/hospital/{item.id}/home?entry=ple"
-                }))
-                {
-                    p.WaitForInputIdle();
+                    if (st.ElapsedMilliseconds > 3000) return (success = false);
                 }
-                showHistories[item.id] = DateTime.Now;
-                return true;
+
+                //---------------------------------------------------------
+                // 신청
+                //https://v-search.nid.naver.com/reservation/info?key=H6X1QDNHE3rv7Zz
+                try { File.WriteAllText(Program.PATH_LAST_INFO, driver.Url, Encoding.UTF8); } catch { }
+                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [자동예약] {item.name} : 제출");
+                st = Stopwatch.StartNew();
+                while (driver.Url.ToLower().StartsWith("https://v-search.nid.naver.com/reservation/info"))
+                {
+                    if (st.ElapsedMilliseconds > 3000) return (success = false);
+                    try
+                    {
+                        var target = driver.FindElementByCssSelector("#reservation_confirm");
+                        if (target == null)
+                        {
+                            continue;
+                        }
+                        target.Click();
+                        break;
+                    }
+                    catch (Exception e)
+                    {
+                    }
+                }
+
+                //---------------------------------------------------------
+                // 프로세스
+                //https://v-search.nid.naver.com/reservation/progress?key=zYh_7wOwNxDnAMM&cd=VEN00015
+                st = Stopwatch.StartNew();
+                while (driver.Url.ToLower().StartsWith("https://v-search.nid.naver.com/reservation/progress"))
+                {
+                    if (st.ElapsedMilliseconds > 3000) return (success = false);
+                }
+
+                // 기록
+                //showHistories[item.id] = DateTime.Now;
+
+                //---------------------------------------------------------
+                // 결과
+                //https://v-search.nid.naver.com/reservation/failure?key=66tPbwxKHj2_pra&code=SOLD_OUT
+                st = Stopwatch.StartNew();
+                while (driver.Url.ToLower().StartsWith("https://v-search.nid.naver.com/reservation/failure")
+                    || (driver.Url.ToLower().StartsWith("https://v-search.nid.naver.com/reservation/info"))
+                    || (driver.Url.ToLower().StartsWith("https://v-search.nid.naver.com/reservation/auth"))
+                    || (driver.Url.ToLower().StartsWith("https://m.place.naver.com/hospital/")))
+                {
+                    Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [자동예약] {item.name} : 실패");
+                    return (success = false);
+                }
+
+                Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [자동예약] {item.name} : 성공!");
+                return (success = true);
             }
             catch (Exception e)
             {
                 Console.WriteLine(e);
                 return false;
+            }
+            finally
+            {
+                if (success)
+                {
+                    Console.WriteLine();
+                    Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] 예약에 성공한것같아요! 실패하셨다면 엔터를 눌러 다시 시작해주세요.");
+                    Console.ReadLine();
+                }
+                Console.WriteLine();
+
+                Program.browser.Open($"https://naver.com/");
             }
         }
     }
