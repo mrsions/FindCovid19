@@ -14,7 +14,7 @@
 
 # 주의사항
 
-![GitHub](https://img.shields.io/badge/-주의사항-F40D12?style=float-square&logo=AdBlock)
+![GitHub](https://img.shields.io/badge/-경고-F40D12?style=float-square&logo=AdBlock)<br>
 이 앱은 네이버 Graph API의 공개되지 않은 부분을 사용하며, 학습목적 이외의 용도로 사용했을 경우의 형사, 민사상을 포함한 모든 법적인 문제는 사용자에게 있습니다.
 
 <hr>
