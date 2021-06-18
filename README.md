@@ -8,6 +8,7 @@
 ![GitHub](https://img.shields.io/badge/-.NET%20Framework%204.5-512BD4?style=float-square&logo=.NET)
 ![GitHub](https://img.shields.io/badge/-LitJson-000000?style=float-square&logo=JSON)
 ![GitHub](https://img.shields.io/badge/-Chrome-7F0000?style=float-square&logo=Chrome%20Browser)
+![GitHub](https://img.shields.io/badge/-Selenium-00887F?style=float-square)
 
 <hr>
 
