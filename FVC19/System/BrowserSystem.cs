@@ -31,6 +31,10 @@ namespace OVC19
             driver = new ChromeDriver(service, options);
         }
 
+        public void Hide()
+        {
+        }
+
         public bool IsRun()
         {
             try
