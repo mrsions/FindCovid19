@@ -274,10 +274,11 @@ namespace OVC19
                 // 인증절차
                 //https://v-search.nid.naver.com/reservation/auth
                 Console.WriteLine($"[{DateTime.Now:yyyy-MM-dd HH:mm:ss.fff}] [자동예약] {item.name} : 사용자인증");
+                try { File.WriteAllText(Program.PATH_LAST_INFO, driver.Url, Encoding.UTF8); } catch { }
                 st = Stopwatch.StartNew();
                 while (driver.Url.ToLower().StartsWith("https://v-search.nid.naver.com/reservation/auth"))
                 {
-                    if (st.ElapsedMilliseconds > 3000) return (success = false);
+                    //if (st.ElapsedMilliseconds > 3000) return (success = false);
                 }
 
                 //---------------------------------------------------------

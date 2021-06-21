@@ -33,6 +33,8 @@ namespace OVC19
                 SelectLocation();
                 SelectVaccine();
 
+                browser.Hide();
+
                 PrintHeader();
                 Console.WriteLine("------------------------------------------------------------------");
                 Console.WriteLine("▤ 검색시작! (백신을 찾으면 웹창을 띄워줍니다!)");
@@ -72,7 +74,7 @@ namespace OVC19
             Console.WriteLine(" 브라우저를 통해 인증해주세요.");
 
             string authUrl = "https://v-search.nid.naver.com/reservation/info?key=H6X1QDNHE3rv7Zz";
-            if(File.Exists(PATH_LAST_INFO)) File.ReadAllText(PATH_LAST_INFO, Encoding.UTF8);
+            if (File.Exists(PATH_LAST_INFO)) File.ReadAllText(PATH_LAST_INFO, Encoding.UTF8);
 
             driver = browser.Open(authUrl);
             try
@@ -86,7 +88,7 @@ namespace OVC19
                     }
                 }
             }
-            catch 
+            catch
             {
                 Console.WriteLine();
                 Console.WriteLine("브라우저 인증 주소가 손상됐습니다. 실제 예약상황에 들어갔을 때 인증을 실시합니다.");
@@ -121,13 +123,14 @@ namespace OVC19
             Console.WriteLine("▤ 위치 입력");
             Console.WriteLine();
 
+            string url = "https://m.place.naver.com/rest/vaccine?vaccineFilter=used";
             if (File.Exists("location.txt"))
             {
-                string url = File.ReadAllText("location.txt", Encoding.UTF8);
-                if (url.StartsWith("https://m.place.naver.com/rest/vaccine"))
+                string newUrl = File.ReadAllText("location.txt", Encoding.UTF8);
+                if (newUrl.StartsWith("https://m.place.naver.com/rest/vaccine"))
                 {
-                    var lines = url.Replace("\r", "").Split('\n');
-                    browser.Open(lines[0]);
+                    var lines = newUrl.Replace("\r", "").Split('\n');
+                    url = lines[0];
                 }
             }
 
@@ -136,15 +139,21 @@ namespace OVC19
             Console.WriteLine("   2. 지도상에서 검색할 위치 및 폭을 맞춥니다. (넓고 좁음까지 포함)");
             Console.WriteLine("   3. 상단의 [현 지도에서 검색]을 누른다.");
             Console.WriteLine();
-            var driver = browser.Open("https://m.place.naver.com/rest/vaccine?vaccineFilter=used");
+            var driver = browser.Open(url);
 
             while (true)
             {
                 if (SetupQuery(driver.Url))
                 {
-                    File.WriteAllText("location.txt", driver.Url, Encoding.UTF8);
-                    Console.WriteLine();
-                    return;
+                    Console.Write("▶ 위치를 찾았습니다. 이곳으로 할까요? (Y/N) ");
+                    string input = Console.ReadLine().ToLower();
+                    if (input.StartsWith("y"))
+                    {
+                        SetupQuery(driver.Url);
+                        File.WriteAllText("location.txt", driver.Url, Encoding.UTF8);
+                        Console.WriteLine();
+                        return;
+                    }
                 }
             }
         }
@@ -179,11 +188,11 @@ namespace OVC19
         private static void SelectVaccine()
         {
             var vaccines = new string[] { "아스트라제네카", "얀센", "화이자", "모더나" };
+            int index = vaccines.Length;
+
             List<string> selected = new List<string>();
-            int index = 0;
             if (File.Exists("vaccines.txt"))
             {
-                index = vaccines.Length;
                 selected = JsonMapper.ToObject<List<string>>(File.ReadAllText("vaccines.txt", Encoding.UTF8));
             }
             else
